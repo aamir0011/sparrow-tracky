@@ -11,11 +11,11 @@ from sparrow_datums import (
 )
 
 from .distance import iou_distance
-from .tracker import Tracker
+from .tracker import ByteTracker
 
 
 class MultiClassTracker:
-    """Maintain and update tracklets with separate classes."""
+    """Maintain and update tracklets with separate classes using ByteTrack."""
 
     def __init__(
         self,
@@ -24,26 +24,47 @@ class MultiClassTracker:
         distance_function: Callable[
             [FrameBoxes, FrameBoxes], npt.NDArray[np.float64]
         ] = iou_distance,
+        high_score_threshold: float = 0.6,
+        low_score_threshold: float = 0.1,
+        match_threshold: float = 0.8,
+        missing_threshold: int = 30,
     ) -> None:
         """
-        Maintain and update tracklets.
+        Maintain and update tracklets with ByteTrack.
 
         Parameters
         ----------
+        n_classes
+            Number of classes to track
         distance_threshold
-            An IoU score below which potential pairs are eliminated
+            IoU threshold for association
         distance_function
             Function for computing pairwise distances
+        high_score_threshold
+            High confidence detection threshold
+        low_score_threshold
+            Low confidence detection threshold
+        match_threshold
+            Matching threshold for second association
+        missing_threshold
+            Number of frames to wait before finalizing a tracklet
         """
         if n_classes < 1:
             raise ValueError(f"Invalid number of classes: {n_classes}")
         self.n_classes = n_classes
-        self.trackers: dict[int, Tracker] = {}
+        self.trackers: dict[int, ByteTracker] = {}
         for class_idx in range(n_classes):
-            self.trackers[class_idx] = Tracker(distance_threshold, distance_function)
+            self.trackers[class_idx] = ByteTracker(
+                distance_threshold=distance_threshold,
+                distance_function=distance_function,
+                missing_threshold=missing_threshold,
+                high_score_threshold=high_score_threshold,
+                low_score_threshold=low_score_threshold,
+                match_threshold=match_threshold,
+            )
 
     @property
-    def _first_tracker(self) -> Tracker:
+    def _first_tracker(self) -> ByteTracker:
         return self.trackers[0]
 
     @property
